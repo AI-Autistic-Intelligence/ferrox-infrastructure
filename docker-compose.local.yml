@@ -1,0 +1,61 @@
+version: '3.8'
+
+# Ferrox Polyglot Ecosystem - Local Development Compose
+# Usage: docker-compose -f docker-compose.local.yml up --build
+
+services:
+  # --- 1. DATA STORAGE TIER ---
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ferrox
+      POSTGRES_PASSWORD: secret_ferrox_db
+      POSTGRES_DB: ferrox
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # --- 2. MICROSERVICES TIER ---
+  php-gateway:
+    build:
+      context: ../../ferrox-php
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+
+  py-dataplatform:
+    build:
+      context: ../../ferrox-py
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+
+  node-realtime:
+    build:
+      context: ../../ferrox-node
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+
+  java-processor:
+    build:
+      context: ../../ferrox-java
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  pg_data:
+  redis_data:
