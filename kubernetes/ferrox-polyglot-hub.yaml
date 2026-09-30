@@ -1,0 +1,212 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ferrox-polyglot
+---
+# ==========================================
+# 1. DATA STORAGE TIER
+# ==========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferrox-postgres
+  namespace: ferrox-polyglot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ferrox-postgres
+  template:
+    metadata:
+      labels:
+        app: ferrox-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_USER
+          value: "ferrox"
+        - name: POSTGRES_PASSWORD
+          value: "secret_ferrox_db"
+        - name: POSTGRES_DB
+          value: "ferrox"
+        ports:
+        - containerPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferrox-postgres
+  namespace: ferrox-polyglot
+spec:
+  selector:
+    app: ferrox-postgres
+  ports:
+  - port: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferrox-redis
+  namespace: ferrox-polyglot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ferrox-redis
+  template:
+    metadata:
+      labels:
+        app: ferrox-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferrox-redis
+  namespace: ferrox-polyglot
+spec:
+  selector:
+    app: ferrox-redis
+  ports:
+  - port: 6379
+
+# ==========================================
+# 2. MICROSERVICES TIER
+# ==========================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferrox-php-gateway
+  namespace: ferrox-polyglot
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ferrox-php-gateway
+  template:
+    metadata:
+      labels:
+        app: ferrox-php-gateway
+    spec:
+      containers:
+      - name: php-gateway
+        image: ferrox/php-gateway:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferrox-php-gateway
+  namespace: ferrox-polyglot
+spec:
+  type: LoadBalancer
+  selector:
+    app: ferrox-php-gateway
+  ports:
+  - port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferrox-py-dataplatform
+  namespace: ferrox-polyglot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ferrox-py-dataplatform
+  template:
+    metadata:
+      labels:
+        app: ferrox-py-dataplatform
+    spec:
+      containers:
+      - name: py-dataplatform
+        image: ferrox/py-dataplatform:latest
+        ports:
+        - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferrox-py-dataplatform
+  namespace: ferrox-polyglot
+spec:
+  type: LoadBalancer
+  selector:
+    app: ferrox-py-dataplatform
+  ports:
+  - port: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferrox-java-processor
+  namespace: ferrox-polyglot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ferrox-java-processor
+  template:
+    metadata:
+      labels:
+        app: ferrox-java-processor
+    spec:
+      containers:
+      - name: java-processor
+        image: ferrox/java-processor:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferrox-java-processor
+  namespace: ferrox-polyglot
+spec:
+  selector:
+    app: ferrox-java-processor
+  ports:
+  - port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferrox-node-realtime
+  namespace: ferrox-polyglot
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ferrox-node-realtime
+  template:
+    metadata:
+      labels:
+        app: ferrox-node-realtime
+    spec:
+      containers:
+      - name: node-realtime
+        image: ferrox/node-realtime:latest
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferrox-node-realtime
+  namespace: ferrox-polyglot
+spec:
+  selector:
+    app: ferrox-node-realtime
+  ports:
+  - port: 3000
