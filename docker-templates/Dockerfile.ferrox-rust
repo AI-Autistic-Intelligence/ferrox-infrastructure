@@ -1,0 +1,25 @@
+# Stage 1: Build Environment
+FROM rust:1.80-slim-bookworm as builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y pkg-config libssl-dev build-essential && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/ferrox
+
+# Copy Cargo files to cache dependencies
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+COPY apps ./apps
+
+# Build the specific app (e.g. ferrox-showcase)
+RUN cargo build --release --package ferrox-showcase
+
+# Stage 2: Minimal Production Image (Distroless)
+FROM gcr.io/distroless/cc-debian12
+
+COPY --from=builder /usr/src/ferrox/target/release/ferrox-showcase /usr/local/bin/ferrox-showcase
+
+# Expose standard HTTP and Metrics ports
+EXPOSE 8000 9090
+
+ENTRYPOINT ["/usr/local/bin/ferrox-showcase"]

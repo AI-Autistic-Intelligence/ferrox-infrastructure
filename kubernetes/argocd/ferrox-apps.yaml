@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: ferrox-ecosystem
+  namespace: argocd
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: in-cluster
+        repoUrl: https://github.com/AI-Autistic-Intelligence/ferrox.git
+        path: apps/ferrox-showcase/k8s
+        appName: ferrox-rust-core
+      - cluster: in-cluster
+        repoUrl: https://github.com/AI-Autistic-Intelligence/ferrox-java.git
+        path: ferrox-java-showcase/k8s
+        appName: ferrox-java-banking
+      - cluster: in-cluster
+        repoUrl: https://github.com/AI-Autistic-Intelligence/ferrox-py.git
+        path: examples/data_platform/k8s
+        appName: ferrox-py-quant
+      - cluster: in-cluster
+        repoUrl: https://github.com/AI-Autistic-Intelligence/ferrox-php.git
+        path: examples/k8s
+        appName: ferrox-php-eshop
+  template:
+    metadata:
+      name: '{{appName}}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{repoUrl}}'
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: ferrox-production
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
