@@ -1,0 +1,66 @@
+# Ferrox Infrastructure - .gitignore
+
+# Terraform Local & State Files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local Docker & Kubernetes Overrides
+docker-compose.local.yml
+docker-compose.override.yml
+*.local.yml
+*.local.yaml
+
+# Certificates & Secrets
+*.pem
+*.key
+*.crt
+secrets/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+.env*.local
+*.env
+!.env.example
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDEs and Code Editors
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
