@@ -240,6 +240,28 @@ services:
     networks:
       - ferrox-network
 
+  # 4.9 TELEMETRY: Ferrox Discord Telemetry & Security Alert Bridge (:8085)
+  ferrox-discord-bridge:
+    build:
+      context: ../../ferrox-discord-bridge
+      dockerfile: Dockerfile
+    container_name: ferrox-discord-bridge
+    restart: unless-stopped
+    profiles: ["telemetry", "all"]
+    environment:
+      - BRIDGE_HTTP_PORT=8085
+      - BRIDGE_SECRET_KEY=ferrox_super_secret_bridge_key_change_me
+      - DOCS_URL=https://ai-autistic-intelligence.github.io/ferrox-docs/
+      - GATEWAY_URL=http://api-gateway:80
+      - LARGE_TRADE_THRESHOLD_USD=10000.0
+      - SENTINEL_ENTROPY_THRESHOLD=4.8
+      - LOG_LEVEL=INFO
+    ports:
+      - "8085:8085"
+    networks:
+      - ferrox-network
+
+
 # ==============================================================================
 # VOLUMES & NETWORKS
 # ==============================================================================

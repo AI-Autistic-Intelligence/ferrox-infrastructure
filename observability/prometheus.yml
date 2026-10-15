@@ -36,3 +36,9 @@ scrape_configs:
     metrics_path: "/metrics"
     static_configs:
       - targets: ["nestjs-yalc-task:3002"]
+
+  - job_name: "ferrox-bid-engine"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["ferrox-bid:8081"]
+
