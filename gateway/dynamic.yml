@@ -1,0 +1,128 @@
+http:
+  routers:
+    # 1. Rust High-Frequency Matching & LOB
+    rust-router:
+      rule: "PathPrefix(`/api/v1/rust`)"
+      service: rust-service
+      middlewares:
+        - strip-rust-prefix
+      priority: 100
+
+    # 2. PHP FrankenPHP Distributed Saga E-Shop
+    php-router:
+      rule: "PathPrefix(`/api/v1/php`)"
+      service: php-service
+      middlewares:
+        - strip-php-prefix
+      priority: 100
+
+    # 3. Python Polars Data Platform
+    py-router:
+      rule: "PathPrefix(`/api/v1/py`)"
+      service: py-service
+      middlewares:
+        - strip-py-prefix
+      priority: 100
+
+    # 4. Node Fastify Modular Microservice
+    node-router:
+      rule: "PathPrefix(`/api/v1/node`)"
+      service: node-service
+      middlewares:
+        - strip-node-prefix
+      priority: 100
+
+    # 5. NestJS Yalc Multi-Tenant Task Service
+    nest-router:
+      rule: "PathPrefix(`/api/v1/nest`)"
+      service: nest-service
+      middlewares:
+        - strip-nest-prefix
+      priority: 100
+
+    # 6. Java 21 Project Loom & Panama Enterprise Showcase
+    java-router:
+      rule: "PathPrefix(`/api/v1/java`)"
+      service: java-service
+      middlewares:
+        - strip-java-prefix
+      priority: 100
+
+    # 7. Ferrox Bid Real-Time Auction Engine (Java 21 Loom & Singleflight)
+    bid-router:
+      rule: "PathPrefix(`/api/v1/bid`)"
+      service: bid-service
+      middlewares:
+        - strip-bid-prefix
+      priority: 100
+
+    # 8. Ferrox Front Wasm Admin Dashboard (Fallback Catch-All)
+    front-router:
+      rule: "PathPrefix(`/`)"
+      service: front-service
+      priority: 10
+
+  middlewares:
+    strip-rust-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1/rust"
+    strip-php-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1/php"
+    strip-py-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1/py"
+    strip-node-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1/node"
+    strip-nest-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1/nest"
+    strip-java-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1/java"
+    strip-bid-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1/bid"
+
+  services:
+    rust-service:
+      loadBalancer:
+        servers:
+          - url: "http://ferrox-saas-backend:8080"
+    php-service:
+      loadBalancer:
+        servers:
+          - url: "http://ferrox-php-eshop:8000"
+    py-service:
+      loadBalancer:
+        servers:
+          - url: "http://ferrox-py-platform:8001"
+    node-service:
+      loadBalancer:
+        servers:
+          - url: "http://ferrox-node-showcase:3000"
+    nest-service:
+      loadBalancer:
+        servers:
+          - url: "http://nestjs-yalc-task:3002"
+    java-service:
+      loadBalancer:
+        servers:
+          - url: "http://ferrox-java-showcase:8082"
+    bid-service:
+      loadBalancer:
+        servers:
+          - url: "http://ferrox-bid:8081"
+    front-service:
+      loadBalancer:
+        servers:
+          - url: "http://ferrox-front-dashboard:80"
+

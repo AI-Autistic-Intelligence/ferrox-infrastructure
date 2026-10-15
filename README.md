@@ -1,69 +1,83 @@
-# Ferrox Infrastructure (IaC)
+# Ferrox Infrastructure (IaC & Unified Mesh Orchestration 2.0)
 
-![Platform](https://img.shields.io/badge/Platform-Polyglot-blue.svg)
-![Infrastructure](https://img.shields.io/badge/Infrastructure-Terraform-purple.svg)
+![Platform](https://img.shields.io/badge/Platform-Polyglot_Mesh-blue.svg)
+![Gateway](https://img.shields.io/badge/Gateway-Traefik_v3-brightgreen.svg)
+![Observability](https://img.shields.io/badge/Observability-OTel_+_Prometheus_+_Grafana-orange.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-**Ferrox Infrastructure** is the centralized "Infrastructure as Code" (IaC) repository for deploying the Ferrox Ecosystem. It implements a **Platform Engineering** approach, completely decoupling the underlying infrastructure from the microservices.
+**Ferrox Infrastructure** is the centralized orchestration and Platform Engineering hub for the entire Ferrox & Yalc ecosystem. It provides the **Unified Mesh Orchestration (`docker-compose.mesh.yml`)**, Central API Gateway (Traefik v3), shared telemetry (OpenTelemetry, Prometheus, Grafana), and cloud provisioning (Terraform AWS/GCP/VPS).
 
-By using this repository, you provision the **Data Storage Layer** (PostgreSQL, Redis) and the **Compute Cluster**, into which all Ferrox Polyglot microservices (PHP, Python, Node.js, Java) are subsequently injected.
+---
 
-## 🏗️ Polyglot Architecture
+## 🏛 Unified Polyglot Mesh Architecture
 
-The infrastructure orchestrates the following ecosystem:
-1. **Ferrox-PHP (API Gateway)**: Handles REST ingress, zero-trust security (Paseto), and WAF. Reads from PostgreSQL.
-2. **Ferrox-Py (Data Platform)**: Handles massive WebSocket multiplexing, DAG ETL pipelines, and Quantitative Analytics (Pandas/Numpy). Reads/Writes to Redis.
-3. **Ferrox-Node (Real-Time)**: Handles outgoing WebSockets to clients.
-4. **Ferrox-Java (Enterprise)**: Handles heavy transactional processing and Event Sourcing.
+```mermaid
+graph TD
+    Client["Client / Browser (:80)"] --> Traefik["Central API Gateway (Traefik v3 :80)"]
 
-## 🚀 Deployment Scenarios
+    subgraph "Unified Routing Mesh (/api/v1/*)"
+        Traefik -->|/api/v1/rust/*| Rust["ferrox (Rust SaaS Backend :8080)"]
+        Traefik -->|/api/v1/java/*| Java["ferrox-java (Java 21 Loom :8082)"]
+        Traefik -->|/api/v1/php/*| Php["ferrox-php (FrankenPHP E-Shop :8000)"]
+        Traefik -->|/api/v1/py/*| Py["ferrox-py (Polars Platform :8001)"]
+        Traefik -->|/api/v1/node/*| Node["ferrox-node (Fastify :3000)"]
+        Traefik -->|/api/v1/nest/*| Nest["nestjs-yalc (Clean Arch :3002)"]
+        Traefik -->|/* (Fallback)| Front["ferrox-front (Wasm Admin Dashboard :4000)"]
+    end
 
-This repository contains ready-to-use Terraform modules for 3 different scenarios:
+    subgraph "Shared Observability Stack"
+        Rust & Java & Php & Py & Node & Nest -.->|OTLP Traces & Metrics| OTel["OTel Collector (:4317/:4318)"]
+        OTel --> Prom["Prometheus (:9090)"]
+        Prom --> Grafana["Grafana Dashboard (:3001)"]
+    end
 
-### 1. AWS (Amazon Web Services) - Serverless Enterprise
-**Path:** `terraform/aws`
-- Provisions an **ECS Fargate Cluster** for serverless container execution.
-- Provisions **ElastiCache (Redis)** and **RDS (PostgreSQL)** within a private VPC network.
-- *Best for:* Highly scalable, zero-ops production environments.
-
-```bash
-cd terraform/aws
-terraform init
-terraform apply -var="aws_region=eu-central-1" -var="db_password=YOUR_SECURE_PASSWORD"
+    subgraph "Shared Persistence & Caching"
+        Rust & Java & Php & Py & Node & Nest --> PG["PostgreSQL 16 (:5432)"]
+        Rust & Java & Php & Py & Node & Nest --> Redis["Redis 7 (:6379)"]
+    end
 ```
 
-### 2. GCP (Google Cloud Platform) - Kubernetes
-**Path:** `terraform/gcp`
-- Provisions a **GKE (Google Kubernetes Engine)** cluster.
-- Provisions **Cloud SQL** and **Memorystore**.
-- *Best for:* Teams relying on Kubernetes orchestration and Helm charts.
+---
 
-```bash
-cd terraform/gcp
-terraform init
-terraform apply -var="gcp_project_id=your-project" -var="gcp_region=europe-west3"
+## ⚡ Quick Start: Mesh Orchestration
+
+Start the entire polyglot ecosystem with one command:
+
+```powershell
+# In PowerShell:
+./mesh-up.ps1
+
+# Stop the mesh:
+./mesh-down.ps1
 ```
 
-### 3. VPS / Bare-Metal - Docker Swarm / Compose
-**Path:** `terraform/vps`
-- Uses `null_resource` to connect via SSH to a raw IP.
-- Automatically installs Docker and Docker-Compose.
-- Boots up the entire Polyglot Hub natively via a generated `docker-compose.yml`.
-- *Best for:* Low-cost environments, on-premise servers, or staging.
+Or using standard Docker Compose:
 
 ```bash
-cd terraform/vps
-terraform init
-terraform apply -var="vps_ip=192.168.1.100" -var="ssh_private_key_path=~/.ssh/id_rsa" -var="db_password=secret"
+docker compose -f docker-compose.mesh.yml up -d
+docker compose -f docker-compose.mesh.yml down
 ```
 
-## 🔗 Integration via Git Submodules
-To provide developers with immediate access to local deployment orchestration, this repository can be integrated into individual application repositories (e.g., `ferrox-php`, `ferrox-py`) as a Git Submodule:
+---
 
-```bash
-# Inside your ferrox-php or ferrox-py repo:
-git submodule add https://github.com/AI-Autistic-Intelligence/ferrox-infrastructure.git infrastructure
-git commit -m "chore: link infrastructure submodule"
-```
+## 📡 Gateway Routing Table
 
-This allows developers to spin up the entire ecosystem dependencies (Postgres, Redis) locally using the VPS/Docker-Compose scripts before writing application code.
+| Gateway Route | Internal Service | Port | Description |
+| :--- | :--- | :--- | :--- |
+| `/api/v1/rust/*` | `ferrox-saas-backend` | 8080 | Rust High-Frequency Limit Order Book & Engine |
+| `/api/v1/java/*` | `ferrox-java-showcase` | 8082 | Java 21 Loom Virtual Threads & Panama Off-Heap Cache |
+| `/api/v1/php/*` | `ferrox-php-eshop` | 8000 | FrankenPHP Worker Mode & Distributed Saga Orchestration |
+| `/api/v1/py/*` | `ferrox-py-platform` | 8001 | Python Polars High-Throughput Analytics & DAGs |
+| `/api/v1/node/*` | `ferrox-node-showcase` | 3000 | Fastify 5 Modular Microservice |
+| `/api/v1/nest/*` | `nestjs-yalc-task` | 3002 | NestJS Clean Architecture Multi-Tenant Task API |
+| `/*` | `ferrox-front-dashboard` | 4000 | WebAssembly Admin Dashboard (Glassmorphic) |
+
+---
+
+## 📊 Observability & Telemetry Endpoints
+
+- **Central API Gateway**: `http://localhost:80`
+- **Traefik Admin Dashboard**: `http://localhost:8088`
+- **Prometheus Scrape Engine**: `http://localhost:9090`
+- **Grafana Pre-configured Dashboard**: `http://localhost:3001` (Credentials: `admin` / `admin`)
+- **OpenTelemetry Collector**: `http://localhost:4318` (HTTP OTLP) / `localhost:4317` (gRPC OTLP)

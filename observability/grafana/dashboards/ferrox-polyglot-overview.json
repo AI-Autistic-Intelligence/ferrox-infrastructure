@@ -1,0 +1,171 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "⚡ Polyglot Ecosystem High-Level Health & Throughput",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisCenteredZero": false, "axisLabel": "req/sec", "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 15 },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 1,
+      "title": "🚀 Polyglot Ingestion Throughput (All 6 Runtimes)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (job) (rate(http_requests_total[1m]))", "legendFormat": "{{job}}" },
+        { "expr": "sum(rate(http_server_requests_seconds_count[1m]))", "legendFormat": "ferrox-java-loom" }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "milliseconds", "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2 },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "id": 2,
+      "title": "⏱️ Sub-Millisecond & Virtual Thread Latency (p99)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum by (le, job) (rate(http_request_duration_seconds_bucket[1m]))) * 1000", "legendFormat": "{{job}} p99 (ms)" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[1m]))) * 1000", "legendFormat": "ferrox-java p99 (ms)" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 101,
+      "title": "☕ Java 21 Project Loom & Project Panama Off-Heap Analytics",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10000 },
+              { "color": "red", "value": 50000 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 10 },
+      "id": 3,
+      "title": "Active Virtual Threads (Loom)",
+      "type": "stat",
+      "targets": [
+        { "expr": "jvm_threads_live_threads{job=\"ferrox-java-showcase\"}", "legendFormat": "Virtual Threads" }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "lineWidth": 1 },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 6, "w": 9, "x": 6, "y": 10 },
+      "id": 4,
+      "title": "Panama Off-Heap Native Memory Allocation",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{area=\"nonheap\", job=\"ferrox-java-showcase\"}", "legendFormat": "Native Off-Heap Memory" }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth" },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 6, "w": 9, "x": 15, "y": 10 },
+      "id": 5,
+      "title": "Singleflight Deduplicated Flights",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "rate(ferrox_singleflight_deduplicated_total[1m])", "legendFormat": "Deduplicated Stampedes" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "id": 102,
+      "title": "🛡️ Sentinel Threat Engine (Shannon Entropy WAF) & Zero-Trust Security",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "lineWidth": 1 },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 17 },
+      "id": 6,
+      "title": "Sentinel Intercepted Threat Attacks (HTTP 403)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (reason) (increase(ferrox_sentinel_threats_blocked_total[1m]))", "legendFormat": "{{reason}}" }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2 },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 17 },
+      "id": 7,
+      "title": "PASETO v4 Crypto Token Validations / Sec",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (role) (rate(ferrox_paseto_validations_total[1m]))", "legendFormat": "Role: {{role}}" }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["ferrox", "mesh", "polyglot", "loom", "security"],
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s"] },
+  "timezone": "browser",
+  "title": "Ferrox Polyglot Ecosystem Overview",
+  "uid": "ferrox-mesh-overview",
+  "version": 1
+}

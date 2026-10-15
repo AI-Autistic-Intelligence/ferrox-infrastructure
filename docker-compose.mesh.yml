@@ -1,0 +1,255 @@
+services:
+  # ============================================================================
+  # 1. CENTRAL API GATEWAY (TRAEFIK V3)
+  # ============================================================================
+  api-gateway:
+    image: traefik:v3.1
+    container_name: ferrox-mesh-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"        # Public API Gateway Entrance
+      - "8080:80"      # Compatibility Entrance
+      - "8088:8080"    # Traefik Web Admin Dashboard
+    volumes:
+      - ./gateway/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./gateway/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - ferrox-network
+    depends_on:
+      - ferrox-front-dashboard
+      - ferrox-java-showcase
+
+  # ============================================================================
+  # 2. SHARED OBSERVABILITY STACK (OTEL + PROMETHEUS + GRAFANA)
+  # ============================================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.98.0
+    container_name: ferrox-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+      - "8889:8889"    # Prometheus metrics exporter
+    networks:
+      - ferrox-network
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: ferrox-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - ferrox-network
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: ferrox-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - ferrox-network
+
+  # ============================================================================
+  # 3. SHARED PERSISTENCE & CACHING TIER
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: ferrox-mesh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ferrox
+      POSTGRES_PASSWORD: secret_ferrox_db
+      POSTGRES_DB: ferrox_mesh
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_mesh_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ferrox -d ferrox_mesh"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ferrox-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ferrox-mesh-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_mesh_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ferrox-network
+
+  # ============================================================================
+  # 4. POLYGLOT MICROSERVICES (6 RUNTIMES + 1 FRONTEND)
+  # ============================================================================
+  # 4.1 RUST: High-Frequency Matching & SaaS Backend (:8080)
+  ferrox-saas-backend:
+    build:
+      context: ../../ferrox
+      dockerfile: Dockerfile
+    container_name: ferrox-saas-backend
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgres://ferrox:secret_ferrox_db@postgres:5432/ferrox_mesh
+    networks:
+      - ferrox-network
+
+  # 4.2 PHP: FrankenPHP Distributed Saga E-Shop (:8000)
+  ferrox-php-eshop:
+    build:
+      context: ../../ferrox-php
+      dockerfile: examples/eshop/Dockerfile
+    container_name: ferrox-php-eshop
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8000
+      - REDIS_HOST=redis
+      - DB_HOST=postgres
+    networks:
+      - ferrox-network
+
+  # 4.3 PYTHON: Polars High-Throughput Analytics & FastData (:8001)
+  ferrox-py-platform:
+    build:
+      context: ../../ferrox-py
+      dockerfile: examples/data_platform/Dockerfile
+    container_name: ferrox-py-platform
+    restart: unless-stopped
+    environment:
+      - PORT=8001
+      - REDIS_HOST=redis
+    networks:
+      - ferrox-network
+
+  # 4.4 NODE: Fastify 5 Modular Microservice (:3000)
+  ferrox-node-showcase:
+    build:
+      context: ../../ferrox-node
+      dockerfile: examples/enterprise-showcase/Dockerfile
+    container_name: ferrox-node-showcase
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - REDIS_HOST=redis
+    networks:
+      - ferrox-network
+
+  # 4.5 NESTJS: Clean Architecture & Multi-Tenant Task Microservice (:3002)
+  nestjs-yalc-task:
+    build:
+      context: ../../nestjs-yalc
+      dockerfile: apps/ferrox-saas-backend/Dockerfile
+    container_name: nestjs-yalc-task
+    restart: unless-stopped
+    environment:
+      - PORT=3002
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    networks:
+      - ferrox-network
+
+  # 4.6 JAVA: Java 21 Project Loom & Panama Enterprise Showcase (:8082)
+  ferrox-java-showcase:
+    build:
+      context: ../..
+      dockerfile: ferrox-java/ferrox-java-showcase/Dockerfile
+    container_name: ferrox-java-showcase
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_THREADS_VIRTUAL_ENABLED=true
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/ferrox_mesh
+      - SPRING_DATASOURCE_USERNAME=ferrox
+      - SPRING_DATASOURCE_PASSWORD=secret_ferrox_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8082/actuator/health/liveness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ferrox-network
+
+  # 4.7 BID: Java 21 High-Frequency Bidding & Singleflight Engine (:8081)
+  ferrox-bid:
+    build:
+      context: ../../ferrox-bid
+      dockerfile: Dockerfile
+    container_name: ferrox-bid-engine
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_THREADS_VIRTUAL_ENABLED=true
+    ports:
+      - "8081:8081"
+    networks:
+      - ferrox-network
+
+  # 4.8 FRONTEND: Ferrox Front Wasm Admin Dashboard (:4000)
+  ferrox-front-dashboard:
+    build:
+      context: ../../ferrox-front
+      dockerfile: Dockerfile.frontend
+    container_name: ferrox-front-dashboard
+    restart: unless-stopped
+    environment:
+      - VITE_API_GATEWAY_URL=http://localhost:80
+    ports:
+      - "4000:80"
+    networks:
+      - ferrox-network
+
+# ==============================================================================
+# VOLUMES & NETWORKS
+# ==============================================================================
+volumes:
+  postgres_mesh_data:
+  redis_mesh_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  ferrox-network:
+    name: ferrox-network
+    driver: bridge

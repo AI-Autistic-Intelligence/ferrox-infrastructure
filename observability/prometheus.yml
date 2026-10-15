@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: "otel-collector"
+    static_configs:
+      - targets: ["otel-collector:8889"]
+
+  - job_name: "ferrox-java-showcase"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["ferrox-java-showcase:8082"]
+
+  - job_name: "ferrox-saas-backend-rust"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["ferrox-saas-backend:8080"]
+
+  - job_name: "ferrox-php-eshop"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["ferrox-php-eshop:8000"]
+
+  - job_name: "ferrox-py-platform"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["ferrox-py-platform:8001"]
+
+  - job_name: "ferrox-node-showcase"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["ferrox-node-showcase:3000"]
+
+  - job_name: "nestjs-yalc-task"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["nestjs-yalc-task:3002"]
