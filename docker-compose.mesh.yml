@@ -111,6 +111,38 @@ services:
       - ferrox-network
 
   # ============================================================================
+  # 3.1 REAL-TIME EVENT STREAMING BROKER (REDPANDA / KAFKA-COMPATIBLE C++)
+  # ============================================================================
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.2
+    container_name: ferrox-mesh-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8083,external://0.0.0.0:18083
+      - --advertise-pandaproxy-addr internal://redpanda:8083,external://localhost:18083
+      - --schema-registry-addr internal://0.0.0.0:8084,external://0.0.0.0:18084
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --mode dev-container
+      - --smp 1
+      - --memory 1G
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+    volumes:
+      - redpanda_mesh_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ferrox-network
+
+  # ============================================================================
   # 4. POLYGLOT MICROSERVICES (6 RUNTIMES + 1 FRONTEND)
   # ============================================================================
   # 4.1 RUST: High-Frequency Matching & SaaS Backend (:8080)
@@ -261,6 +293,27 @@ services:
     networks:
       - ferrox-network
 
+  # 4.10 MATCH: Sub-microsecond Rust Order Matching & Market Streaming (:8086)
+  ferrox-match:
+    build:
+      context: ../../ferrox-match
+      dockerfile: Dockerfile
+    container_name: ferrox-match-engine
+    restart: unless-stopped
+    environment:
+      - PORT=8086
+      - KAFKA_BROKERS=redpanda:9092
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "8086:8086"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ferrox-network
+
 
 # ==============================================================================
 # VOLUMES & NETWORKS
@@ -268,6 +321,7 @@ services:
 volumes:
   postgres_mesh_data:
   redis_mesh_data:
+  redpanda_mesh_data:
   prometheus_data:
   grafana_data:
 

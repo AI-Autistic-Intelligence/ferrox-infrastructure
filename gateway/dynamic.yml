@@ -56,6 +56,14 @@ http:
         - strip-bid-prefix
       priority: 100
 
+    # 7.1 Ferrox Match High-Frequency Order Engine & WebSocket Gateway
+    match-router:
+      rule: "PathPrefix(`/api/v1/match`)"
+      service: match-service
+      middlewares:
+        - strip-match-prefix
+      priority: 100
+
     # 8. Ferrox Front Wasm Admin Dashboard (Fallback Catch-All)
     front-router:
       rule: "PathPrefix(`/`)"
@@ -91,6 +99,10 @@ http:
       stripPrefix:
         prefixes:
           - "/api/v1/bid"
+    strip-match-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1/match"
 
   services:
     rust-service:
@@ -121,6 +133,10 @@ http:
       loadBalancer:
         servers:
           - url: "http://ferrox-bid:8081"
+    match-service:
+      loadBalancer:
+        servers:
+          - url: "http://ferrox-match:8086"
     front-service:
       loadBalancer:
         servers:
