@@ -1,0 +1,239 @@
+# ==============================================================================
+# 🌐 FERROX LIVING MESH - STANDALONE ZERO-CLONING MANIFEST ($0.00 CLOUD COST)
+# ==============================================================================
+# This Docker Compose file is completely self-contained and requires NO host
+# directory mounts and NO local workspace cloning.
+#
+# QUICKSTART (One-Liner):
+#   curl -fsSL https://raw.githubusercontent.com/AI-Autistic-Intelligence/ferrox-infrastructure/master/docker-compose.standalone.yml | docker compose -f - up -d
+#
+# OR WITH CARGO-FERROX:
+#   cargo ferrox mesh up --standalone
+# ==============================================================================
+
+services:
+  # ============================================================================
+  # 1. CORE EVENT STREAMING BROKER (REDPANDA / KAFKA COMPATIBLE)
+  # ============================================================================
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.2
+    container_name: ferrox-standalone-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8083,external://0.0.0.0:18083
+      - --advertise-pandaproxy-addr internal://redpanda:8083,external://localhost:18083
+      - --schema-registry-addr internal://0.0.0.0:8084,external://0.0.0.0:18084
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --mode dev-container
+      - --smp 1
+      - --memory 1G
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+    volumes:
+      - ferrox_standalone_redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ferrox-standalone-network
+
+  # ============================================================================
+  # 2. SHARED IN-MEMORY & LOCKING TIER (REDIS)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: ferrox-standalone-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ferrox_standalone_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ferrox-standalone-network
+
+  # ============================================================================
+  # 3. SHARED PERSISTENCE TIER (POSTGRESQL)
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: ferrox-standalone-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ferrox
+      POSTGRES_PASSWORD: secret_ferrox_db
+      POSTGRES_DB: ferrox_mesh
+    ports:
+      - "5432:5432"
+    volumes:
+      - ferrox_standalone_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ferrox -d ferrox_mesh"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ferrox-standalone-network
+
+  # ============================================================================
+  # 4. POLYGLOT ECOSYSTEM SERVICES (GHCR DISTRIBUTED IMAGES)
+  # ============================================================================
+
+  # 4.1 RUST: Sub-microsecond Order Matching Engine & WebSocket Gateway (:8086)
+  ferrox-match:
+    image: ghcr.io/ai-autistic-intelligence/ferrox-match:latest
+    container_name: ferrox-standalone-match
+    restart: unless-stopped
+    environment:
+      - PORT=8086
+      - KAFKA_BROKERS=redpanda:9092
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "8086:8086"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ferrox-standalone-network
+
+  # 4.2 RUST: High-Performance SaaS Core & CQRS Backend (:8080)
+  ferrox-saas-backend:
+    image: ghcr.io/ai-autistic-intelligence/ferrox-saas-backend:latest
+    container_name: ferrox-standalone-saas-backend
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgres://ferrox:secret_ferrox_db@postgres:5432/ferrox_mesh
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ferrox-standalone-network
+
+  # 4.3 JAVA: Project Loom Virtual Threads & Double-Entry Ledger (:8082)
+  ferrox-java:
+    image: ghcr.io/ai-autistic-intelligence/ferrox-java:latest
+    container_name: ferrox-standalone-java
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_THREADS_VIRTUAL_ENABLED=true
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/ferrox_mesh
+      - SPRING_DATASOURCE_USERNAME=ferrox
+      - SPRING_DATASOURCE_PASSWORD=secret_ferrox_db
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    networks:
+      - ferrox-standalone-network
+
+  # 4.4 PHP: FrankenPHP Distributed Saga Coordinator & Redlock (:8000)
+  ferrox-php:
+    image: ghcr.io/ai-autistic-intelligence/ferrox-php:latest
+    container_name: ferrox-standalone-php
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8000
+      - PORT=8000
+      - REDIS_HOST=redis
+      - DB_HOST=postgres
+      - KAFKA_BROKERS=redpanda:9092
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ferrox-standalone-network
+
+  # 4.5 TYPESCRIPT / NODE: Enterprise CQRS & Cryptographic Audit Handler (:3000)
+  ferrox-node:
+    image: ghcr.io/ai-autistic-intelligence/ferrox-node:latest
+    container_name: ferrox-standalone-node
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - REDIS_HOST=redis
+      - KAFKA_BROKERS=redpanda:9092
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    networks:
+      - ferrox-standalone-network
+
+  # 4.6 PYTHON: Polars Analytics & High-Throughput Data Worker (:8001)
+  ferrox-py:
+    image: ghcr.io/ai-autistic-intelligence/ferrox-py:latest
+    container_name: ferrox-standalone-py
+    restart: unless-stopped
+    environment:
+      - PORT=8001
+      - REDIS_HOST=redis
+      - KAFKA_BROKERS=redpanda:9092
+    ports:
+      - "8001:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ferrox-standalone-network
+
+  # 4.7 RUST WASM: Mission Control 3.0 Web UI & Order Dispatcher (:4000)
+  ferrox-front:
+    image: ghcr.io/ai-autistic-intelligence/ferrox-front:latest
+    container_name: ferrox-standalone-front
+    restart: unless-stopped
+    environment:
+      - VITE_API_GATEWAY_URL=http://localhost:8080
+      - VITE_MATCH_WS_URL=ws://localhost:8086
+    ports:
+      - "4000:80"
+    networks:
+      - ferrox-standalone-network
+
+# ==============================================================================
+# NAMED VOLUMES & NETWORKS (ZERO HOST BIND-MOUNT DEPENDENCY)
+# ==============================================================================
+volumes:
+  ferrox_standalone_postgres_data:
+  ferrox_standalone_redis_data:
+  ferrox_standalone_redpanda_data:
+
+networks:
+  ferrox-standalone-network:
+    name: ferrox-standalone-network
+    driver: bridge
